@@ -1,42 +1,85 @@
-import { useState, useEffect } from 'react'
-import './App.css'
+import React, { useEffect, useState } from 'react'
+import Search from './components/Search'
 
-//class component
-// class ClassComponent extends React.Component {
-//   render(){
-//     return <h2>This is a class component</h2>
-//   }
-// }
+const API_BASE_URL = 'https://api.themoviedb.org/3';
+  const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-
-//arrow components
-
-const Card = ({title}) => {
-  const [count, setCount] = useState(0);
-  const [hasLiked, setHasLiked] = useState(false);
-
-  useEffect(() => {
-    console.log(`${title} has been ${hasLiked}`);
-  }, [hasLiked, title])
-
-  return (
-    <div className="card" onClick={() => setCount(count + 1)}>
-      <h2>{title} <br /> {count}</h2>
-      <button onClick={() => setHasLiked(!hasLiked)}>
-        {hasLiked ? 'Liked' : 'Like'}
-      </button>
-    </div>
-  )
-}
+  const API_OPTIONS = {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      Authorization: `Bearer ${API_KEY}`
+    } 
+  }
 
 const App = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [movieList, setMovieList] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchMovies = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const endpoint = `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+      const response = await fetch(endpoint, API_OPTIONS);
+      if(!response.ok){
+        throw new Error('Failed to fetch movies');
+      }
+      const data = await response.json();
+      if(data.Response === 'False'){
+        setErrorMessage(data.Error || 'Failed to fetch movies');
+        setMovieList([]);
+        return;
+      }
+      setMovieList(data.results || []);
+    } catch (error) {
+      console.error(`Error fetching movies: ${error}`);
+      setErrorMessage('Failed to fetch movies. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchMovies();
+  }, []);
 
   return (
-    <div className="card-container">
-      <Card title="Star Wars" rating={5} isCool={true} actors={[{name: 'Actors'}]}/>
-      <Card title="Avatar"/>
-      <Card title="The Lion King"/>
-    </div>
+    <main>
+      <div className="pattern"></div>
+      <div className="wrapper">
+        <header>
+          <img src="./hero.png" alt="Hero Banner" />
+          <h1>Find <span className="text-gradient">Movies</span> You'll Enjoy Without the Hassle</h1>
+          <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        </header>
+
+        <section className="all-movies">
+          <h2>All Movies</h2>
+
+          {isLoading ? (
+            <p className="text-white">Loading movies...</p>
+          ) : errorMessage ? (
+            <p className="text-red-500">{errorMessage}</p>
+          ) : (
+            <ul>
+              {movieList.map(movie => (
+                <li key={movie.id} className="movie-card">
+                  <img src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} alt={movie.title} />
+                  <h3 key={movie.id}>{movie.title}</h3>
+                  <p>Release Date: {movie.release_date}</p>
+                  <p>Rating: {movie.vote_average}</p>
+                </li>
+              ))} 
+            </ul>
+          )}
+        </section>
+        
+      </div>
+    </main>
   )
 }
 
